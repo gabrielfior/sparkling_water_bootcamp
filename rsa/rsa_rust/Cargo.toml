@@ -1,0 +1,16 @@
+[package]
+name = "rsa_rust"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rand = { version = "0.8", features = [] }
+num-bigint = { version = "0.4", features = ["rand"] }
+num-traits = "0.2.16"
+num = "0.4.1"
+primal = "0.3.2"
+num-integer = "0.1"
+rand_chacha = { version = "0.3.1", features = [] }
+modinverse = "0.1.1"
