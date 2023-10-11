@@ -1,119 +1,93 @@
-use std::ops::{Div, Mul};
+use std::ops::{Add, Sub, Mul};
 use num_bigint::BigInt;
 
 #[derive(Clone, Debug, PartialEq)]
-struct FieldElement {
-    num: Option<BigInt>,
-    prime: u128
+pub struct FieldElement {
+    pub num: BigInt,
+    pub prime: BigInt,
 }
 
 impl FieldElement {
-    fn add(self) -> u8 {
-        1
+    pub fn new(num: BigInt, prime: BigInt) -> FieldElement {
+        if num.gt(&prime) {
+            panic!("The number should be lesser than the prime");
+        } else {
+            FieldElement { num, prime }
+        }
+    }
+
+    pub fn double(self: Self) -> FieldElement {
+        let num = self.num.mul(2);
+        FieldElement { num, prime: self.prime }
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-struct Point {
-    x: FieldElement,
-    y: FieldElement,
-    a: FieldElement,
-    b: FieldElement,
-}
-
-impl Point {
-
-    fn build_point_at_infinity(self) -> Point{
-        println!("Returning point at infinity");
-        return Point {x: FieldElement {num: None, prime: self.x.prime},
-            y: FieldElement {num: None, prime: self.x.prime},
-            a: self.a, b: self.b }
-    }
-
-    fn add(self, other: Point) -> Point {
-
-        // not same curve
-        if self.a.num != other.a.num || self.b.num != other.b.num {
-            panic!("Points on different curves");
+impl Add for FieldElement {
+    type Output = Self;
+    fn add(self: Self, other: FieldElement) -> FieldElement {
+        if self.prime != other.prime {
+            panic!("Only numbers in the same field can be added");
+        } else {
+            let num = (self.num + other.num) % &self.prime;
+            FieldElement { num, prime: self.prime }
         }
-        // ToDo - if self.x is None
-        if self.x.num == None {
-            return other;
-        }
-        if other.x.num == None {
-            return self;
-        }
-        // ToDo - if other.x is None
-        if self.x.num.clone().unwrap().eq(&other.x.num.clone().unwrap()) &&
-            !self.y.num.clone().unwrap().eq(&other.y.num.clone().unwrap()){
-            // infinity
-            return self.build_point_at_infinity()
-        }
-        // # Case 2: self.x ≠ other.x
-        // # Formula (x3,y3)==(x1,y1)+(x2,y2)
-        // # s=(y2-y1)/(x2-x1)
-        // # x3=s**2-x1-x2
-        // # y3=s*(x1-x3)-y1
-        let s = (other.y.num.clone().unwrap().min(self.y.num.clone().unwrap())).div(
-            other.x.num.clone().unwrap().min(self.x.num.clone().unwrap()));
-        let x3 = s.modpow(&BigInt::from(2), &BigInt::from(self.x.prime)).min(
-            self.x.num.clone().unwrap()).min(other.x.num.clone().unwrap());
-        let y3 = s.mul(self.x.num.clone().unwrap().min(x3.clone())).min(self.y.num.clone().unwrap());
-        return Point {
-            x: FieldElement {num: Some(x3.clone()), prime: self.x.prime},
-            y: FieldElement {num: Some(y3), prime: self.x.prime},
-            a: self.a,
-            b: self.b,
-        };
-    }
-
-    fn eq(&self, other: &Self) -> bool {
-        self.x == other.x && self.y == other.y && self.b == other.b && self.a == other.a
     }
 }
+
+impl Sub for FieldElement {
+    type Output = Self;
+    fn sub(self: Self, other: FieldElement) -> FieldElement {
+        if self.prime != other.prime {
+            panic!("Only numbers in the same field can be subtracted");
+        } else {
+            if self.num > other.num {
+                FieldElement { num: self.num - other.num, prime: self.prime }
+            } else {
+                FieldElement { num: self.num - other.num + &self.prime, prime: self.prime }
+            }
+        }
+    }
+}
+
+impl Mul for FieldElement {
+    type Output = FieldElement;
+
+    fn mul(self, other: Self) -> Self::Output {
+        if self.prime.ne(&other.prime) {
+            panic!("Cannot multiply two numbesr in different fields");
+        }
+        let num = &self.num.mul(&other.num) % &self.prime;
+        FieldElement { num, prime: self.prime.clone() }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
-    use num_bigint::BigInt;
-    //use num_bigint::BigUint;
-    use crate::field::{FieldElement, Point};
+    use super::*;
 
     #[test]
-    fn test_field_elements_add_result_infinity(){
-        let prime = 223;
-        let a = FieldElement { num: Some(BigInt::from(0)), prime: prime };
-        let b = FieldElement { num: Some(BigInt::from(7)), prime: prime };
-        let p1 = Point { a: a.clone(), b:b.clone(),
-            x: FieldElement { num: Some(BigInt::from(10)), prime },
-            y: FieldElement { num: Some(BigInt::from(142)), prime } };
-        let p2 = Point { a:a.clone(), b:b.clone(), x: FieldElement { num: Some(BigInt::from(10)), prime },
-            y: FieldElement { num: Some(BigInt::from(139)), prime } };
-        let sum1 = p1.add(p2);
-        assert_eq!(sum1, Point {
-            x: FieldElement { num: None, prime },
-            y: FieldElement { num: None, prime },
-            a: a.clone(),
-            b: b.clone()
-        });
+    fn test_add_field_elements() {
+        let x = FieldElement::new(BigInt::from(2), BigInt::from(9));
+        let y = FieldElement::new(BigInt::from(1), BigInt::from(9));
+        let z = x.clone() + y.clone();
+        assert_eq!(z.num, BigInt::from(3));
     }
 
-    fn test_field_elements_add1() {
-        let prime = 223;
-        let a = FieldElement { num: Some(BigInt::from(0)), prime: prime };
-        let b = FieldElement { num: Some(BigInt::from(7)), prime: prime };
-        let p1 = Point { a: a.clone(), b:b.clone(),
-            x: FieldElement { num: Some(BigInt::from(170)), prime },
-            y: FieldElement { num: Some(BigInt::from(142)), prime } };
-        let p2 = Point { a:a.clone(), b:b.clone(), x: FieldElement { num: Some(BigInt::from(60)), prime },
-            y: FieldElement { num: Some(BigInt::from(139)), prime } };
-        let sum1 = p1.add(p2);
-        assert_eq!(sum1, Point {
-            x: FieldElement { num: Some(BigInt::from(220)), prime },
-            y: FieldElement { num: Some(BigInt::from(181)), prime },
-            a: a.clone(),
-            b: b.clone()
-        });
+    #[test]
+    fn test_double_field_elements() {
+        let x = FieldElement::new(BigInt::from(2), BigInt::from(9));
+        let z = x.double();
+        assert_eq!(z.num, BigInt::from(4));
     }
 
-
+    #[test]
+    fn test_mul_field_elements() {
+        let x = FieldElement::new(BigInt::from(2), BigInt::from(9));
+        let y = FieldElement::new(BigInt::from(5), BigInt::from(9));
+        let z = x.clone() * y.clone();
+        assert_eq!(z.num, BigInt::from(1));
+    }
 }
+
+
